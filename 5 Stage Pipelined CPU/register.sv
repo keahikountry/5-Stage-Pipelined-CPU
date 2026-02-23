@@ -1,0 +1,16 @@
+module register #(parameter WIDTH = 64) (data_in, wr_en, data_out, clk, reset);
+	input logic [WIDTH-1:0] data_in;
+	input logic wr_en, reset, clk;
+	output logic [WIDTH-1:0] data_out;
+	
+	logic [WIDTH-1:0] enabled_bit;
+	genvar i;
+		
+	generate
+		for (i=0; i<WIDTH; i++) begin:	dffs			
+			mux_2to1_old if_st (wr_en, enabled_bit[i], {data_in[i], data_out[i]});
+			D_FF one_dff (.q(data_out[i]), .d(enabled_bit[i]), .reset, .clk);
+		end
+	endgenerate
+
+endmodule 

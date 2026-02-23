@@ -1,0 +1,17 @@
+`timescale 1ns/10ps
+module pc_adder #(parameter WIDTH = 64) (A, B, sum);
+
+	input logic [63:0] A, B;
+	output logic [63:0] sum;
+	logic [63:0] temporary;
+
+	full_adder lowestBits (.A(A[0]), .B(B[0]), .C_in(1'b0), .C_out(temporary[0]), .out(sum[0]));
+
+	genvar i;
+	generate
+		for (i=1; i<WIDTH; i++) begin: addAllBits
+			full_adder current_adder (.A(A[i]), .B(B[i]), .C_in(temporary[i-1]), .C_out(temporary[i]), .out(sum[i]));
+		end
+	endgenerate
+endmodule
+	

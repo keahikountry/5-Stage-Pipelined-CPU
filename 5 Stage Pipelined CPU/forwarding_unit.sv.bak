@@ -1,0 +1,31 @@
+module forwarding_unit (RegWrite_EXMEM, RegWrite_MEMWB, Rd_EXMEM, Rd_MEMWB, Rn_IDEX, Rm_IDEX, forwardA, forwardB);
+
+input logic RegWrite_EXMEM, RegWrite_MEMWB;
+input logic [4:0] Rd_EXMEM, Rd_MEMWB, Rn_IDEX, Rm_IDEX;
+output logic [1:0] forwardA, forwardB;
+
+always_comb begin
+	//forward A\
+	// Case #1
+	if (RegWrite_EXMEM & (Rd_EXMEM != 31) & (Rd_EXMEM = Rn_IDEX))
+		forwardA = 2'b10;
+	// Case #2
+	else if (RegWrite_MEMWB & (Rd_MEMWB != 31) & (Rd_MEMWB = Rn_IDEX)
+		forwardA = 2'b01;
+	else
+		forwardA = 2'b00;
+		
+	//forward B
+	// Case #1
+	if (RegWrite_EXMEM & (Rd_EXMEM != 31) & (Rd_EXMEM = Rm_IDEX)
+		forwardB = 2'b10;
+	// Case #2
+	else if (RegWrite_MEMWB & (Rd_MEMWB != 31) & (Rd_MEMWB = Rm_IDEX)
+		forwardB = 2'b01;
+	
+	else
+		forwardB = 2'b00;
+
+	end
+
+endmodule 

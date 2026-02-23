@@ -1,0 +1,19 @@
+module MEM_WB_register (memToReg_in, memToReg_out, regwrite_in, regwrite_out, dataRead_in, dataRead_out, ALU_in, ALU_out, Rd_in, Rd_out, clk, reset);
+	input logic [63:0]	dataRead_in, ALU_in;
+	input logic [4:0] 	Rd_in;
+	input logic 			memToReg_in, regwrite_in;
+	output logic [63:0]	dataRead_out, ALU_out;
+	output logic [4:0] 	Rd_out;
+	output logic 			memToReg_out, regwrite_out;
+	
+	logic [134:0] temp;
+	
+	register #(135) MEMWB (.data_in({dataRead_in, ALU_in, Rd_in, memToReg_in, regwrite_in}), .wr_en(1).data_out(temp), .clk, .reset);
+	
+	assign dataRead_out = temp[134:71];
+	assign ALU_out = temp[70:7];
+	assign Rd_out = temp[6:2];
+	assign memToReg_out = temp[1];
+	assign regwrite_out = temp[0];
+	
+endmodule 

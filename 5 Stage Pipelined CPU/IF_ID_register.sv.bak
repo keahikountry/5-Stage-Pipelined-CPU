@@ -1,0 +1,5 @@
+module IF_ID_register (instruction_in, instruction_out, pc_plus4_in, pc_plus4_out);
+	input logic [31:0] instruction_in;
+	input logic [63:0] pc_plus4_in;
+	output logic [31:0] instruction_out;
+	output logic [63:0] pc_plus4_out;

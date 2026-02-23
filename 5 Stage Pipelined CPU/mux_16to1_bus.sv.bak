@@ -1,0 +1,14 @@
+module mux_16to1 (sel, out, in);
+	input logic [3:0] sel;
+	input logic [15:0] in;
+	output logic out;
+	
+	logic temp, temp1;
+		
+	mux_8to1_old mux1 (.sel(sel[2:0]), .out(temp), .in(in[7:0]));
+	
+	mux_8to1_old mux2 (.sel(sel[2:0]), .out(temp1), .in(in[15:8]));
+	
+	mux_2to1_old combine (.sel(sel[3]), .out, .in({temp1, temp}));
+
+endmodule 

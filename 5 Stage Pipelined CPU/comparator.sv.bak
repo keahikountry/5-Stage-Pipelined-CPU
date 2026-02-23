@@ -1,0 +1,16 @@
+`timescale 1ns/10ps
+module comparator (A, B, is_zero, less_than);
+	input logic [63:0] A, B;
+	output logic is_zero, less_than;
+	
+	check0_64bit (.in(B), .out(is_zero));
+	
+	
+	
+	genvar i;
+	generate 
+		for(i=0; i< 64; i = i + 1) begin : cmp
+			logic not_B;
+			not #50 (not_B, B[i]);
+		end
+	endgenerate 

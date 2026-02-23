@@ -1,0 +1,38 @@
+//Checks if conditional branch should be achieved based on the flags, cond_true is active high
+`timescale 1ns/10ps
+module condition_checker (
+	input  logic [3:0] cond_code,  // instruction[3:0]
+	input  logic [3:0] flags,      // NZVC
+	output logic LT_true 
+	);
+//	
+	logic N, Z, V, C;
+	assign {N, Z, V, C} = flags;
+
+//	logic cond_eq;
+//	logic cond_ne;
+	logic cond_lt;
+
+	
+	
+	
+	
+//	assign CBZ_true = Z;
+	
+	logic LTindex2, is_LT;
+	not #50 (LTindex2, cond_code[2]);
+	and #50 (is_LT, cond_code[0], cond_code[1], LTindex2, cond_code[3]);
+	
+	
+//	not #50 (cond_ne, cond_eq);
+	xor #50 (cond_lt, N, V);
+	
+	and #50 (LT_true, cond_lt, is_LT);
+
+//	logic [15:0] cond_results;
+//	assign cond_results = {13'b0, cond_lt, cond_ne, cond_eq};
+//	
+//	
+//
+//	assign cond_true = cond_results[cond_code];
+endmodule

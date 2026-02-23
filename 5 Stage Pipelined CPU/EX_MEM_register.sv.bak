@@ -1,0 +1,32 @@
+module EX_MEM_register (uncondBranch_in, Branch_in, memRead_in, memWrite_in, cbz_in, BtoR_in, uncondBranch_out, Branch_out,
+								memRead_out, memWrite_out, cbz_out, BtoR_out, memToReg_in, memToReg_out, regwrite_in, regwrite_out,
+								memWrData_in, ALU_in, BrReg_in, memWrData_out, ALU_out, BrReg_out, Rd_in, Rd_out);
+								
+		
+	input logic 			uncondBranch_in, Branch_in, memRead_in, memWrite_in, cbz_in, BtoR_in, memToReg_in, regwrite_in;
+	output logic 			uncondBranch_out, Branch_out, memRead_out, memWrite_out, cbz_out, BtoR_out, memToReg_out, regwrite_out;
+
+	input logic [63:0]	memWrData_in, ALU_in, BrReg_in;	
+	output logic [63:0] 	memWrData_out, ALU_out, BrReg_out
+	
+	input logic [4:0] 	Rd_in;
+	output logic [4:0] 	Rd_out;
+	
+	logic [204:0] 			temp;
+	
+	register #(205) MEMWB (.data_in({memWrData_in, ALU_in, BrReg_in, Rd_in, uncondBranch_in, Branch_in, memRead_in, memWrite_in, cbz_in, BtoR_in, memToReg_in, regwrite_in}),
+									.wr_en(1).data_out(temp), .clk, .reset);
+	assign memWrData = temp[204:141];
+	assign ALU_out = temp[140:77];
+	assign BrReg_out = temp[76:13];
+	assign Rd_out = temp[12:8];
+	assign uncondBranch_out = temp[7];
+	assign Branch_out = temp[6];
+	assign memRead_out = temp[5];
+	assign memWrite_out = temp[4];
+	assign cbz_out = temp[3];
+	assign BtoR_out = temp[2];
+	assign memToReg_out = temp[1];
+	assign regwrite_out = temp[0];
+	
+endmodule 

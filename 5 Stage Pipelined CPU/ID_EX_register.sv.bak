@@ -1,0 +1,14 @@
+module ID_EX_register (WB_in, WB_out, M_in, M_out, EX_in, EX_out, CP_in, CP_out, read_data1_in, read_data1_out, 
+read_data2_in, read_data2_out, immeadiate_in, immeadiate_out, Rd_in, Rd_out, reset, clk);
+	input logic [31:0] instruction_in;
+	input logic [63:0] CP_in;
+	input logic reset, clk;
+	output logic [31:0] instruction_out;
+	output logic [63:0] CP_out;
+
+	
+	register #(96) IFID (.data_in({instruction_in, CP_in}), .wr_en(1), .data_out(temp), .clk, .reset);
+	assign CP_out = temp[95:64];
+	assign CP_out = temp[63:0];
+	
+endmodule 

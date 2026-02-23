@@ -1,0 +1,51 @@
+`timescale 1ns/10ps
+module regfile (read_reg1, read_reg2, wr_reg, wr_data, wr_en, read_data1, read_data2, reset, clk);
+	input logic [4:0] read_reg1, read_reg2, wr_reg;
+	input logic [63:0] wr_data;
+	input logic wr_en, reset, clk;
+	output logic [63:0] read_data1, read_data2;
+	
+	logic [31:0] [63:0] reg_file;
+	logic [31:0] reg_sel;
+	
+	logic notclk;
+	not #50 invertclk (notclk, clk);
+	
+	
+	decoder_5to32 swr (.outputs(reg_sel), .address(wr_reg), .enable(wr_en));
+	
+	genvar i;
+	generate 
+		for (i=0; i<31; i++) begin: regfile
+			register r (.data_in(wr_data), .wr_en(reg_sel[i]), .data_out(reg_file[i]), .clk(notclk), .reset);
+		end
+	endgenerate
+	
+	assign reg_file[31] = 64'b0;
+	
+	logic [63:0] [31:0] reg_swapped;
+	
+	integer row, col; 
+	always_comb begin
+		for (row = 0; row < 32; row++) begin
+			for (col = 0; col < 64; col++) begin
+				reg_swapped[col][row] = reg_file[row][col];
+			end
+		end	
+	end
+	
+	genvar j;
+	generate
+		for (j=0; j<64; j++) begin: mux1
+			mux_32to1 mux_r1 (.sel(read_reg1), .out(read_data1[j]), .in(reg_swapped[j]));
+		end
+	endgenerate
+	
+	genvar k;
+	generate
+		for (k=0; k<64; k++) begin: mux2
+			mux_32to1 mux_r2 (.sel(read_reg2), .out(read_data2[k]), .in(reg_swapped[k]));
+		end
+	endgenerate
+	
+endmodule 

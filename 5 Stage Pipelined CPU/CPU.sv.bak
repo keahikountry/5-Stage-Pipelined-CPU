@@ -1,0 +1,191 @@
+`timescale 1ns/10ps
+module CPU (clk, reset);
+	input logic clk, reset;
+	
+	//	Instruction Fetch signal names
+	logic [31:0] instruction;
+	logic [63:0] PC_plus4_ID;
+	
+	//	Control signal names
+	logic Reg2Loc, Uncondbranch, Branch, MemRead, MemtoReg, MemWrite, 
+	ALUSrc, RegWrite, Link, set_flags, Immediate, cbz, BtoR;
+	logic [2:0] ALUOp;
+	
+	//	Flag signals / variables
+	logic negative, zero, overflow, carry_out;
+	logic [3:0] flags;	//	4'bNZVC - {Negative, Zero, oVerflow, Carry}
+	
+	//	ALU signals
+	logic [63:0] ALU_imm;
+	logic [63:0] Daddr;
+	logic [63:0] imm_or_Daddr;
+	logic [63:0] ALU_result;
+	logic [63:0] ALU_data_in2;	//	Output of MUX below.
+	
+	//	RegFile signals
+	logic [4:0] Rn, Rm, Rd, Rm_pre, Rd_pre;
+	logic [63:0] wr_data_pre, wr_data;
+	logic [63:0] Rn_data1, Rm_data2;
+	
+	//	Data Memory signals
+	logic	[63:0] read_data;
+	
+	////////////////////////////////////----PIPELINE REGISTER----////////////////////////////////////
+
+	// IF/ID
+	logic [31:0] instruction_ID;
+	logic [63:0] PC_out_ID;
+	logic [63:0] PC_out;
+	
+	// ID/EX
+	logic [63:0] Rn_data1_EX, Rm_data2_EX;
+	logic [63:0] BrReg_EX, PC_plus4_EX;
+	logic [4:0] Rn_EX, Rm_EX, Rd_EX;
+	logic [63:0] ALU_imm_EX, Daddr_EX;
+	logic [2:0] ALUOp_EX;
+	logic Reg2Loc_EX, Uncondbranch_EX, Branch_EX, MemRead_EX, MemtoReg_EX, MemWrite_EX, 
+	ALUSrc_EX, RegWrite_EX, set_flags_EX, Immediate_EX, cbz_EX, BtoR_EX, link_EX;
+	
+	// EX/MEM
+	logic [63:0] ALU_result_MEM, Rm_data2_MEM, PC_plus4_MEM;
+	logic [4:0] Rd_MEM;
+	logic MemWrite_MEM, MemRead_MEM, MemtoReg_MEM, RegWrite_MEM, link_MEM;
+	
+	// MEM/WB
+	logic [63:0] read_data_WB, ALU_result_WB, PC_plus4_WB;
+	logic [4:0] Rd_WB;
+	logic RegWrite_WB, MemtoReg_WB, link_WB;
+
+	// Forwarding variables
+	logic [1:0] forwardA, forwardB;
+	logic [63:0] ALU_top_fin, ALU_bottom_fin;
+	
+	// Branch control variables
+	logic zero_ID;
+	
+
+	////////////////////////////////////----INSTRUCTION FETCH PIPELINED----////////////////////////////////////
+
+	check0_64bit check0 (.in(Rm_data2_EX), .out(zero_ID));
+	
+	Instruction_fetch Instr_fetch (.clk(clk), .reset(reset), .BrTaken(Branch), .UncondBr(Uncondbranch), .instruction(instruction), 
+											.flags(flags), .cbz(cbz), .zero(zero_ID), .PC_plus4_ID(PC_plus4_ID), .BrReg(Rm_data2), .BtoR, .PC_out(PC_out), .PC_ID(PC_out_ID), .instruction_ID);
+	
+	IF_ID_register IF_ID (.instruction_in(instruction), .instruction_out(instruction_ID), .CP_in(PC_out), .CP_out(PC_out_ID), .reset, .clk);
+	
+	////////////////////////////////////----MAIN CONTROL PIPELINED----////////////////////////////////////
+	
+	
+	MAIN_control maincontrol (.instruction(instruction_ID[31:21]), .zero(zero), .Reg2Loc(Reg2Loc), .Uncondbranch, .Branch, 
+	.MemRead, .MemtoReg, .ALUOp, .MemWrite, .ALUSrc, .RegWrite, .Link, .set_flags, .Immediate, .cbz, .BtoR);
+	
+	
+	////////////////////////////////////----FLAGS----////////////////////////////////////
+	
+	
+	logic not_clk;
+	not #50 (not_clk, clk);
+	register #(4) flagreg (.data_in({negative, zero, overflow, carry_out}), .wr_en(set_flags_EX), .data_out(flags), .clk(not_clk), .reset);
+	
+	
+	////////////////////////////////////----ALU PIPELINED----////////////////////////////////////
+	
+	
+	zero_extender #(12) alu_imm_se (.in(instruction_ID[21:10]), .out(ALU_imm));	// ZE of ALU_immediate
+	sign_extender #(9) DAddr9_se (.in(instruction_ID[20:12]), .out(Daddr));		// SE of DT_address
+	
+	mux2to1_multibit #(64) Immediate_mux (.sel(Immediate), .out(imm_or_Daddr), .in0(Daddr), .in1(ALU_imm));	//	mux for whether it is immediate or not
+	
+	ID_EX_register ID_EX (.regWrite_in(RegWrite), .regWrite_out(RegWrite_EX), .MemRead_in(MemRead), 
+								.MemRead_out(MemRead_EX), .MemWrite_in(MemWrite), .MemWrite_out(MemWrite_EX), .MemtoReg_in(MemtoReg), 
+								.MemtoReg_out(MemtoReg_EX), .ALUsrc_in(ALUSrc), .ALUsrc_out(ALUSrc_EX), .ALUOp_in(ALUOp), 
+								.ALUOp_out(ALUOp_EX), .set_flags_in(set_flags), .set_flags_out(set_flags_EX), .Rn_data1_in(Rn_data1), 
+								.Rn_data1_out(Rn_data1_EX), .Rm_data2_in(Rm_data2), .Rm_data2_out(Rm_data2_EX), .immediate_in(imm_or_Daddr), 
+								.immediate_out(Daddr_EX), .Rd_in(Rd), .Rd_out(Rd_EX), .Rm_in(Rm), .Rm_out(Rm_EX), .Rn_in(Rn), .Rn_out(Rn_EX),
+								.reset, .clk, .link_in(Link), .link_out(link_EX), .PC_4_in(PC_plus4_ID), .PC_4_out(PC_plus4_EX));
+	
+	
+	////// FORWARDING //////
+	
+	forwarding_unit forwardUnit (.RegWrite_EXMEM(RegWrite_MEM), .RegWrite_MEMWB(RegWrite_WB), .Rd_EXMEM(Rd_MEM),
+											.Rd_MEMWB(Rd_WB), .Rn_IDEX(Rn_EX), .Rm_IDEX(Rm_EX), .forwardA, .forwardB);
+	
+	// 00: no hazard, 01: MEM/WB forward, 10: EX/MEM forward, 11: none.
+	mux4to1_multibit #(64) topALU (.sel(forwardA), .out(ALU_top_fin), .in0(Rn_data1_EX), .in1(ALU_result_WB), .in2(ALU_result_MEM), .in3('bx));
+	
+	mux4to1_multibit #(64) bottomALU (.sel(forwardB), .out(ALU_data_in2), .in0(Rm_data2_EX), .in1(ALU_result_WB), .in2(ALU_result_MEM), .in3('bx));
+	
+	
+	mux2to1_multibit #(64) ALUSrc_mux (.sel(ALUSrc_EX), .out(ALU_bottom_fin), .in0(ALU_data_in2), .in1(Daddr_EX));	// mux for if ALU takes in immediate/DAddr9
+
+	
+	alu ALU_UNIT (.A(ALU_top_fin), .B(ALU_bottom_fin), .cntrl(ALUOp_EX), .result(ALU_result), .negative, .zero(zero), .overflow, .carry_out);
+	
+	
+	////////////////////////////////////----REGISTER FILE PIPELINED----////////////////////////////////////
+	
+	
+	// assign the original values of Rd, Rm, Rn from instruction_ID
+	assign Rd_pre = instruction_ID[4:0];
+	assign Rn = instruction_ID[9:5];
+	assign Rm_pre = instruction_ID[20:16];
+	
+	
+	// mux for if it is branch with link for register 30 to be written to
+	mux2to1_multibit #(5) Link_mux (.sel(Link), .out(Rd), .in0(Rd_pre), .in1(5'b11110));	
+	
+	// mux for passing Rd through Rm for STUR
+	mux2to1_multibit #(5) Reg2Loc_mux (.sel(Reg2Loc), .out(Rm), .in0(Rd_pre), .in1(Rm_pre));	
+	
+	// mux for the data to be written to RegFile
+	mux2to1_multibit #(64) MemtoReg_mux (.sel(MemtoReg_WB), .out(wr_data_pre), .in0(ALU_result_WB), .in1(read_data_WB));	
+	
+	// mux for the data to be written to RegFile depending on if it is a brLink
+//	mux2to1_multibit #(64) final_WrReg_data_mux (.sel(link_WB), .out(wr_data), .in0(wr_data_pre), .in1(PC_plus4_WB));	
+	
+	
+	
+	
+	regfile registerfile (.read_reg1(Rn), .read_reg2(Rm), .wr_reg(Rd_WB), .wr_data(wr_data_pre), .wr_en(RegWrite_WB), .read_data1(Rn_data1), .read_data2(Rm_data2), .reset, .clk);
+	
+	
+	////////////////////////////////////----DATA MEMORY----////////////////////////////////////
+	
+	EX_MEM_register EXMEM (.memRead_in(MemRead_EX), .memWrite_in(MemWrite_EX), .memRead_out(MemRead_MEM), .memWrite_out(MemWrite_MEM),
+									.memToReg_in(MemtoReg_EX), .memToReg_out(MemtoReg_MEM), .regwrite_in(RegWrite_EX), .regwrite_out(RegWrite_MEM),
+									.memWrData_in(Rm_data2_EX), .ALU_in(ALU_result), .memWrData_out(Rm_data2_MEM), .ALU_out(ALU_result_MEM),
+									.Rd_in(Rd_EX), .Rd_out(Rd_MEM), .clk, .reset, .link_in(link_EX), .link_out(link_MEM), .PC_4_in(PC_plus4_EX), .PC_4_out(PC_plus4_MEM));
+	
+	datamem data_memory (.address(ALU_result_MEM), .write_enable(MemWrite_MEM), .read_enable(MemRead_MEM), .write_data(Rm_data2_MEM), .clk, .xfer_size(8), .read_data);  
+	
+	MEM_WB_register MEMWB (.memToReg_in(MemtoReg_MEM), .memToReg_out(MemtoReg_WB), .regwrite_in(RegWrite_MEM), .regwrite_out(RegWrite_WB), .dataRead_in(read_data), 
+									.dataRead_out(read_data_WB), .ALU_in(ALU_result_MEM), .ALU_out(ALU_result_WB), .Rd_in(Rd_MEM), .Rd_out(Rd_WB), .clk, .reset, 
+									.link_in(link_MEM), .link_out(link_WB), .PC_4_in(PC_plus4_MEM), .PC_4_out(PC_plus4_WB));
+	
+endmodule 
+
+`timescale 1ns/10ps
+module CPU_testbench ();
+	logic clk, reset;
+
+	CPU dut (.*);
+	
+	parameter ClockDelay = 20000;
+	
+	
+	initial begin // Set up the clock
+		clk <= 0;
+		forever #(ClockDelay/2) clk <= ~clk;
+	end
+	
+	initial begin
+	
+		reset <= 1; @(posedge clk); #(10);
+		
+		reset <= 0; repeat (100) @(posedge clk);
+		
+		$stop;
+	end
+
+
+endmodule 
